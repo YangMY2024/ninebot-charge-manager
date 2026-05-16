@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>九号电动车充电管理</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --primary: #2563EB;
+            --primary-hover: #1D4ED8;
+            --secondary: #10B981;
+            --accent: #F59E0B;
+            --danger: #EF4444;
+            --danger-hover: #DC2626;
+            --bg: #F8FAFC;
+            --card-bg: #FFFFFF;
+            --text-primary: #1E293B;
+            --text-secondary: #64748B;
+            --border: #E2E8F0;
+            --hover-bg: #F1F5F9;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
+            --radius: 12px;
+            --radius-sm: 8px;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background-color: var(--bg);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px 16px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        header p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            text-align: center;
+        }
+
+        .stat-card .label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .stat-card .value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .stat-card .value.mileage {
+            color: var(--secondary);
+        }
+
+        .stat-card .value.days {
+            color: var(--accent);
+        }
+
+        .input-section {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+            margin-bottom: 24px;
+        }
+
+        .input-section h2 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+
+        .input-row {
+            display: flex;
+            gap: 16px;
+            align-items: flex-end;
+        }
+
+        .form-group {
+            flex: 1;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .form-group input {
+            width: 100%;
+            height: 44px;
+            padding: 0 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 16px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .btn {
+            height: 44px;
+            padding: 0 24px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--hover-bg);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: var(--danger-hover);
+        }
+
+        .btn-sm {
+            height: 32px;
+            padding: 0 12px;
+            font-size: 12px;
+        }
+
+        .records-section {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+            margin-bottom: 24px;
+            overflow-x: auto;
+        }
+
+        .records-section h2 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 600px;
+        }
+
+        th {
+            background: var(--bg);
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+        }
+
+        tr:hover {
+            background: var(--hover-bg);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .chart-section {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+            margin-bottom: 24px;
+        }
+
+        .chart-section h2 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s, visibility 0.2s;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 24px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: var(--shadow-md);
+            transform: scale(0.95);
+            transition: transform 0.2s;
+        }
+
+        .modal-overlay.active .modal {
+            transform: scale(1);
+        }
+
+        .modal h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .modal .form-group {
+            margin-bottom: 16px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--text-primary);
+            color: white;
+            padding: 12px 24px;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: var(--shadow-md);
+            z-index: 1001;
+            transition: transform 0.3s ease;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .input-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .btn {
+                width: 100%;
+            }
+
+            .chart-container {
+                height: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🛴 九号电动车充电管理</h1>
+            <p>记录充电历程，掌控行驶数据</p>
+        </header>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="label">上次充电</div>
+                <div class="value" id="lastChargeTime">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">间隔天数</div>
+                <div class="value days" id="daysSinceLastCharge">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">行驶里程</div>
+                <div class="value" id="lastMileageDiff">-- km</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">当前里程</div>
+                <div class="value mileage" id="currentMileage">-- km</div>
+            </div>
+        </div>
+
+        <div class="input-section">
+            <h2>⚡ 记录充电</h2>
+            <div class="input-row">
+                <div class="form-group">
+                    <label for="mileageInput">当前里程 (公里)</label>
+                    <input type="number" id="mileageInput" placeholder="请输入当前里程" step="0.1" min="0">
+                </div>
+                <button class="btn btn-primary" id="addRecordBtn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                    记录充电
+                </button>
+            </div>
+        </div>
+
+        <div class="records-section">
+            <h2>📋 充电记录</h2>
+            <div id="recordsContainer">
+                <table id="recordsTable">
+                    <thead>
+                        <tr>
+                            <th>充电时间</th>
+                            <th>当前里程 (km)</th>
+                            <th>间隔天数</th>
+                            <th>行驶里程 (km)</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recordsBody"></tbody>
+                </table>
+                <div class="empty-state" id="emptyState" style="display: none;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M9 17v-2m3 2v-4m3 4v-6M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                    </svg>
+                    <p>暂无充电记录，点击上方按钮开始记录</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <h2>📊 月度看板</h2>
+            <div class="chart-container">
+                <canvas id="monthlyChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <h2>📈 年度看板</h2>
+            <div class="chart-container">
+                <canvas id="yearlyChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="editModal">
+        <div class="modal">
+            <h3 id="modalTitle">编辑记录</h3>
+            <div class="form-group">
+                <label for="editTimeInput">充电时间</label>
+                <input type="datetime-local" id="editTimeInput">
+            </div>
+            <div class="form-group">
+                <label for="editMileageInput">当前里程 (公里)</label>
+                <input type="number" id="editMileageInput" step="0.1" min="0">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="cancelEditBtn">取消</button>
+                <button class="btn btn-primary" id="saveEditBtn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal">
+            <h3>确认删除</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 16px;">确定要删除这条充电记录吗？此操作不可撤销。</p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="cancelDeleteBtn">取消</button>
+                <button class="btn btn-danger" id="confirmDeleteBtn">删除</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast">操作成功</div>
+
+    <script>
+        const STORAGE_KEY = 'ninebot_charge_records';
+        let records = [];
+        let editingRecordId = null;
+        let deletingRecordId = null;
+        let monthlyChart = null;
+        let yearlyChart = null;
+
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+        }
+
+        function formatDateTime(timestamp) {
+            const date = new Date(timestamp);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        }
+
+        function formatDate(timestamp) {
+            const date = new Date(timestamp);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function getDaysDiff(timestamp1, timestamp2) {
+            const diff = Math.abs(timestamp2 - timestamp1);
+            return (diff / (1000 * 60 * 60 * 24)).toFixed(1);
+        }
+
+        function loadRecords() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                try {
+                    records = JSON.parse(stored);
+                } catch (e) {
+                    records = [];
+                }
+            }
+        }
+
+        function saveRecords() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2500);
+        }
+
+        function updateStats() {
+            if (records.length === 0) {
+                document.getElementById('lastChargeTime').textContent = '--';
+                document.getElementById('daysSinceLastCharge').textContent = '--';
+                document.getElementById('lastMileageDiff').textContent = '-- km';
+                document.getElementById('currentMileage').textContent = '-- km';
+                return;
+            }
+
+            const sortedRecords = [...records].sort((a, b) => b.timestamp - a.timestamp);
+            const latest = sortedRecords[0];
+            const now = Date.now();
+
+            document.getElementById('lastChargeTime').textContent = formatDate(latest.timestamp);
+            document.getElementById('daysSinceLastCharge').textContent = getDaysDiff(latest.timestamp, now);
+            document.getElementById('currentMileage').textContent = latest.mileage.toFixed(1) + ' km';
+
+            if (sortedRecords.length > 1) {
+                const previous = sortedRecords[1];
+                const mileageDiff = latest.mileage - previous.mileage;
+                document.getElementById('lastMileageDiff').textContent = mileageDiff.toFixed(1) + ' km';
+            } else {
+                document.getElementById('lastMileageDiff').textContent = '0.0 km';
+            }
+        }
+
+        function renderRecords() {
+            const tbody = document.getElementById('recordsBody');
+            const emptyState = document.getElementById('emptyState');
+            const table = document.getElementById('recordsTable');
+
+            if (records.length === 0) {
+                table.style.display = 'none';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            table.style.display = 'table';
+            emptyState.style.display = 'none';
+
+            const sortedRecords = [...records].sort((a, b) => b.timestamp - a.timestamp);
+
+            tbody.innerHTML = sortedRecords.map((record, index) => {
+                const prevRecord = sortedRecords[index + 1];
+                const daysSincePrevious = prevRecord ? getDaysDiff(prevRecord.timestamp, record.timestamp) : '--';
+                const mileageDiff = prevRecord ? (record.mileage - prevRecord.mileage).toFixed(1) : '--';
+
+                return `
+                    <tr data-id="${record.id}">
+                        <td>${formatDateTime(record.timestamp)}</td>
+                        <td>${record.mileage.toFixed(1)}</td>
+                        <td>${daysSincePrevious}</td>
+                        <td>${mileageDiff}</td>
+                        <td class="actions">
+                            <button class="btn btn-secondary btn-sm" onclick="editRecord('${record.id}')">编辑</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteRecord('${record.id}')">删除</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function addRecord() {
+            const mileageInput = document.getElementById('mileageInput');
+            const mileage = parseFloat(mileageInput.value) || 0;
+
+            if (mileage <= 0) {
+                showToast('请输入有效的里程数');
+                return;
+            }
+
+            const now = Date.now();
+            const newRecord = {
+                id: generateId(),
+                timestamp: now,
+                mileage: mileage,
+                createdAt: formatDateTime(now),
+                updatedAt: formatDateTime(now)
+            };
+
+            records.push(newRecord);
+            saveRecords();
+
+            mileageInput.value = '';
+            renderRecords();
+            updateStats();
+            updateCharts();
+            showToast('充电记录已保存');
+        }
+
+        function editRecord(id) {
+            const record = records.find(r => r.id === id);
+            if (!record) return;
+
+            editingRecordId = id;
+            document.getElementById('editTimeInput').value = record.timestamp;
+            document.getElementById('editMileageInput').value = record.mileage;
+            document.getElementById('editModal').classList.add('active');
+        }
+
+        function saveEdit() {
+            if (!editingRecordId) return;
+
+            const record = records.find(r => r.id === editingRecordId);
+            if (!record) return;
+
+            const newTime = new Date(document.getElementById('editTimeInput').value).getTime();
+            const newMileage = parseFloat(document.getElementById('editMileageInput').value);
+
+            if (isNaN(newTime) || isNaN(newMileage) || newMileage < 0) {
+                showToast('请输入有效的数据');
+                return;
+            }
+
+            record.timestamp = newTime;
+            record.mileage = newMileage;
+            record.updatedAt = formatDateTime(Date.now());
+
+            saveRecords();
+            renderRecords();
+            updateStats();
+            updateCharts();
+
+            closeEditModal();
+            showToast('记录已更新');
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').classList.remove('active');
+            editingRecordId = null;
+        }
+
+        function deleteRecord(id) {
+            deletingRecordId = id;
+            document.getElementById('deleteModal').classList.add('active');
+        }
+
+        function confirmDelete() {
+            if (!deletingRecordId) return;
+
+            records = records.filter(r => r.id !== deletingRecordId);
+            saveRecords();
+            renderRecords();
+            updateStats();
+            updateCharts();
+
+            closeDeleteModal();
+            showToast('记录已删除');
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('active');
+            deletingRecordId = null;
+        }
+
+        function getMonthlyData() {
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth();
+
+            const monthlyRecords = records.filter(r => {
+                const date = new Date(r.timestamp);
+                return date.getFullYear() === currentYear && date.getMonth() === currentMonth;
+            });
+
+            monthlyRecords.sort((a, b) => a.timestamp - b.timestamp);
+
+            const labels = monthlyRecords.map(r => formatDate(r.timestamp));
+            const mileageDiffs = [];
+
+            for (let i = 1; i < monthlyRecords.length; i++) {
+                mileageDiffs.push(parseFloat((monthlyRecords[i].mileage - monthlyRecords[i - 1].mileage).toFixed(1)));
+            }
+
+            if (monthlyRecords.length > 0) {
+                mileageDiffs.unshift(0);
+            }
+
+            return { labels, data: mileageDiffs };
+        }
+
+        function getYearlyData() {
+            const now = new Date();
+            const currentYear = now.getFullYear();
+
+            const monthlyTotals = Array(12).fill(0);
+
+            records.forEach(r => {
+                const date = new Date(r.timestamp);
+                if (date.getFullYear() === currentYear) {
+                    const month = date.getMonth();
+                    const idx = monthlyRecords.findIndex(rec => {
+                        const recDate = new Date(rec.timestamp);
+                        return recDate.getMonth() === month && recDate > date;
+                    });
+
+                    if (idx === -1) {
+                        const sameMonthRecords = records.filter(rec => {
+                            const recDate = new Date(rec.timestamp);
+                            return recDate.getFullYear() === currentYear && recDate.getMonth() === month;
+                        });
+                        sameMonthRecords.sort((a, b) => a.timestamp - b.timestamp);
+                        const nextIdx = sameMonthRecords.findIndex(rec => rec.timestamp > r.timestamp);
+                        if (nextIdx > 0) {
+                            monthlyTotals[month] += parseFloat((sameMonthRecords[nextIdx].mileage - r.mileage).toFixed(1));
+                        }
+                    }
+                }
+            });
+
+            const labels = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+
+            return { labels, data: monthlyTotals };
+        }
+
+        let monthlyRecords = [];
+
+        function getYearlyDataFixed() {
+            const now = new Date();
+            const currentYear = now.getFullYear();
+
+            monthlyRecords = records.filter(r => {
+                const date = new Date(r.timestamp);
+                return date.getFullYear() === currentYear;
+            });
+
+            monthlyRecords.sort((a, b) => a.timestamp - b.timestamp);
+
+            const monthlyTotals = Array(12).fill(0);
+
+            for (let i = 1; i < monthlyRecords.length; i++) {
+                const prevDate = new Date(monthlyRecords[i - 1].timestamp);
+                const currDate = new Date(monthlyRecords[i].timestamp);
+
+                if (prevDate.getFullYear() === currentYear && currDate.getFullYear() === currentYear) {
+                    const prevMonth = prevDate.getMonth();
+                    const currMonth = currDate.getMonth();
+
+                    if (prevMonth === currMonth) {
+                        const diff = parseFloat((monthlyRecords[i].mileage - monthlyRecords[i - 1].mileage).toFixed(1));
+                        if (diff > 0) {
+                            monthlyTotals[prevMonth] += diff;
+                        }
+                    }
+                }
+            }
+
+            const labels = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+
+            return { labels, data: monthlyTotals };
+        }
+
+        function updateCharts() {
+            updateMonthlyChart();
+            updateYearlyChart();
+        }
+
+        function updateMonthlyChart() {
+            const monthlyData = getMonthlyData();
+            const ctx = document.getElementById('monthlyChart').getContext('2d');
+
+            if (monthlyChart) {
+                monthlyChart.destroy();
+            }
+
+            if (monthlyData.labels.length === 0) {
+                monthlyChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['暂无数据'],
+                        datasets: [{
+                            label: '里程差 (km)',
+                            data: [0],
+                            backgroundColor: 'rgba(37, 99, 235, 0.5)',
+                            borderColor: 'rgba(37, 99, 235, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: '里程 (km)'
+                                }
+                            }
+                        }
+                    }
+                });
+                return;
+            }
+
+            monthlyChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: monthlyData.labels,
+                    datasets: [{
+                        label: '里程差 (km)',
+                        data: monthlyData.data,
+                        backgroundColor: 'rgba(37, 99, 235, 0.5)',
+                        borderColor: 'rgba(37, 99, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '里程 (km)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateYearlyChart() {
+            const yearlyData = getYearlyDataFixed();
+            const ctx = document.getElementById('yearlyChart').getContext('2d');
+
+            if (yearlyChart) {
+                yearlyChart.destroy();
+            }
+
+            yearlyChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: yearlyData.labels,
+                    datasets: [{
+                        label: '月度累计里程 (km)',
+                        data: yearlyData.data,
+                        backgroundColor: 'rgba(16, 185, 129, 0.5)',
+                        borderColor: 'rgba(16, 185, 129, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '里程 (km)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        document.getElementById('addRecordBtn').addEventListener('click', addRecord);
+
+        document.getElementById('mileageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                addRecord();
+            }
+        });
+
+        document.getElementById('saveEditBtn').addEventListener('click', saveEdit);
+        document.getElementById('cancelEditBtn').addEventListener('click', closeEditModal);
+
+        document.getElementById('confirmDeleteBtn').addEventListener('click', confirmDelete);
+        document.getElementById('cancelDeleteBtn').addEventListener('click', closeDeleteModal);
+
+        document.getElementById('editModal').addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal-overlay')) {
+                closeEditModal();
+            }
+        });
+
+        document.getElementById('deleteModal').addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal-overlay')) {
+                closeDeleteModal();
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeEditModal();
+                closeDeleteModal();
+            }
+        });
+
+        function init() {
+            loadRecords();
+            renderRecords();
+            updateStats();
+            updateCharts();
+        }
+
+        init();
+    </script>
+</body>
+</html>
