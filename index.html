@@ -704,29 +704,31 @@
         async function loadRecords() {
             loadGistConfig();
             
-            let loadedFromCloud = false;
+            let localRecords = [];
+            let cloudRecords = [];
+            
+            const localStored = localStorage.getItem(STORAGE_KEY);
+            if (localStored) {
+                try {
+                    localRecords = JSON.parse(localStored);
+                } catch (e) {
+                    localRecords = [];
+                }
+            }
             
             if (gistConfig && gistConfig.gistId && gistConfig.accessToken) {
-                const gistData = await loadFromGist();
-                if (gistData && gistData.length > 0) {
-                    records = gistData;
+                cloudRecords = await loadFromGist();
+                if (cloudRecords && cloudRecords.length > 0) {
+                    records = mergeRecords(localRecords, cloudRecords);
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-                    showToast('已从云端加载数据');
-                    loadedFromCloud = true;
+                    showToast('已从云端同步数据');
                     return;
                 }
             }
             
-            if (!loadedFromCloud) {
-                const localStored = localStorage.getItem(STORAGE_KEY);
-                if (localStored) {
-                    try {
-                        records = JSON.parse(localStored);
-                        showToast('使用本地缓存数据');
-                    } catch (e) {
-                        records = [];
-                    }
-                }
+            records = localRecords;
+            if (records.length > 0) {
+                showToast('使用本地缓存数据');
             }
         }
 
@@ -773,18 +775,26 @@
                     records = mergeRecords(records, gistData);
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
                     
-                    const newCount = records.length;
-                    if (newCount > oldCount) {
-                        showToast(`同步成功，新增 ${newCount - oldCount} 条记录`);
+                    const success = await saveToGist();
+                    if (success) {
+                        const newCount = records.length;
+                        if (newCount > oldCount) {
+                            showToast(`同步成功，新增 ${newCount - oldCount} 条记录`);
+                        } else {
+                            showToast('数据已最新');
+                        }
                     } else {
-                        showToast('数据已最新');
+                        showToast('云端保存失败');
                     }
                     
                     renderRecords();
                     updateStats();
                     updateCharts();
                 } else {
-                    showToast('云端暂无数据');
+                    const success = await saveToGist();
+                    if (success) {
+                        showToast('已将本地数据同步到云端');
+                    }
                 }
             } catch (e) {
                 console.error('Sync error:', e);
@@ -817,6 +827,7 @@
                             records = mergeRecords(records, gistData);
                             if (records.length > oldCount) {
                                 localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+                                await saveToGist();
                                 renderRecords();
                                 updateStats();
                                 updateCharts();
@@ -842,6 +853,14 @@
             
             if (gistConfig && gistConfig.accessToken) {
                 if (gistConfig.gistId) {
+                    const cloudRecords = await loadFromGist();
+                    if (cloudRecords && cloudRecords.length > 0) {
+                        records = mergeRecords(cloudRecords, records);
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+                        renderRecords();
+                        updateStats();
+                        updateCharts();
+                    }
                     const success = await saveToGist();
                     if (success) {
                         showToast('已同步到云端');
