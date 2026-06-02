@@ -394,12 +394,23 @@
                     <h1>🛴 九号电动车充电管理</h1>
                     <p>记录充电历程，掌控行驶数据</p>
                 </div>
-                <button class="btn btn-secondary" id="settingsBtn">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
-                    </svg>
-                    设置
-                </button>
+                <div style="display: flex; gap: 12px;">
+                    <button class="btn btn-secondary" id="syncBtn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                            <path d="M3 3v5h5"/>
+                            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+                            <path d="M16 21h5v-5"/>
+                        </svg>
+                        同步
+                    </button>
+                    <button class="btn btn-secondary" id="settingsBtn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+                        </svg>
+                        设置
+                    </button>
+                </div>
             </div>
         </header>
 
@@ -540,12 +551,17 @@
     <script>
         const STORAGE_KEY = 'ninebot_charge_records';
         const GIST_CONFIG_KEY = 'ninebot_gist_config';
+        const SYNC_INTERVAL = 5 * 60 * 1000;
         let records = [];
         let editingRecordId = null;
         let deletingRecordId = null;
         let monthlyChart = null;
         let yearlyChart = null;
-        let gistConfig = null;
+        let gistConfig = {
+            accessToken: 'ghp_YangMY2024',
+            gistId: 'a9f0aeaee243075e62bc5c518792b0d7'
+        };
+        let syncIntervalId = null;
 
         function generateId() {
             return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
@@ -688,21 +704,28 @@
         async function loadRecords() {
             loadGistConfig();
             
-            const localStored = localStorage.getItem(STORAGE_KEY);
-            if (localStored) {
-                try {
-                    records = JSON.parse(localStored);
-                } catch (e) {
-                    records = [];
-                }
-            }
-
+            let loadedFromCloud = false;
+            
             if (gistConfig && gistConfig.gistId && gistConfig.accessToken) {
                 const gistData = await loadFromGist();
                 if (gistData && gistData.length > 0) {
-                    records = mergeRecords(records, gistData);
+                    records = gistData;
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-                    showToast('已从云端同步数据');
+                    showToast('已从云端加载数据');
+                    loadedFromCloud = true;
+                    return;
+                }
+            }
+            
+            if (!loadedFromCloud) {
+                const localStored = localStorage.getItem(STORAGE_KEY);
+                if (localStored) {
+                    try {
+                        records = JSON.parse(localStored);
+                        showToast('使用本地缓存数据');
+                    } catch (e) {
+                        records = [];
+                    }
                 }
             }
         }
@@ -723,6 +746,95 @@
             });
             
             return merged.sort((a, b) => b.timestamp - a.timestamp);
+        }
+
+        async function syncFromCloud() {
+            if (!gistConfig || !gistConfig.gistId || !gistConfig.accessToken) {
+                showToast('请先配置 Gist');
+                return;
+            }
+
+            const syncBtn = document.getElementById('syncBtn');
+            syncBtn.disabled = true;
+            syncBtn.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                    <path d="M3 3v5h5"/>
+                    <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+                    <path d="M16 21h5v-5"/>
+                </svg>
+                同步中...
+            `;
+
+            try {
+                const gistData = await loadFromGist();
+                if (gistData && gistData.length > 0) {
+                    const oldCount = records.length;
+                    records = mergeRecords(records, gistData);
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+                    
+                    const newCount = records.length;
+                    if (newCount > oldCount) {
+                        showToast(`同步成功，新增 ${newCount - oldCount} 条记录`);
+                    } else {
+                        showToast('数据已最新');
+                    }
+                    
+                    renderRecords();
+                    updateStats();
+                    updateCharts();
+                } else {
+                    showToast('云端暂无数据');
+                }
+            } catch (e) {
+                console.error('Sync error:', e);
+                showToast('同步失败，请检查网络');
+            } finally {
+                syncBtn.disabled = false;
+                syncBtn.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                        <path d="M3 3v5h5"/>
+                        <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+                        <path d="M16 21h5v-5"/>
+                    </svg>
+                    同步
+                `;
+            }
+        }
+
+        function startAutoSync() {
+            if (syncIntervalId) {
+                clearInterval(syncIntervalId);
+            }
+            
+            syncIntervalId = setInterval(async () => {
+                if (gistConfig && gistConfig.gistId && gistConfig.accessToken) {
+                    try {
+                        const gistData = await loadFromGist();
+                        if (gistData && gistData.length > 0) {
+                            const oldCount = records.length;
+                            records = mergeRecords(records, gistData);
+                            if (records.length > oldCount) {
+                                localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+                                renderRecords();
+                                updateStats();
+                                updateCharts();
+                                showToast('自动同步完成');
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Auto sync error:', e);
+                    }
+                }
+            }, SYNC_INTERVAL);
+        }
+
+        function stopAutoSync() {
+            if (syncIntervalId) {
+                clearInterval(syncIntervalId);
+                syncIntervalId = null;
+            }
         }
 
         async function saveRecords() {
@@ -1152,6 +1264,8 @@
             }
         });
 
+        document.getElementById('syncBtn').addEventListener('click', syncFromCloud);
+
         document.getElementById('settingsBtn').addEventListener('click', () => {
             if (gistConfig) {
                 document.getElementById('accessTokenInput').value = gistConfig.accessToken || '';
@@ -1192,14 +1306,17 @@
             }
         });
 
-        function init() {
-            loadRecords();
+        async function init() {
+            await loadRecords();
             renderRecords();
             updateStats();
             updateCharts();
+            startAutoSync();
         }
 
         init();
+
+        window.addEventListener('beforeunload', stopAutoSync);
     </script>
 </body>
 </html>
